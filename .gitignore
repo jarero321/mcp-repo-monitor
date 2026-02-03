@@ -1,4 +1,6 @@
 bin/
+.env
+!.env.example
 *.exe
 *.exe~
 *.dll

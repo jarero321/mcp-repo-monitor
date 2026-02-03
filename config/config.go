@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+
+	"github.com/joho/godotenv"
 )
 
 type BranchConfig struct {
@@ -22,14 +24,27 @@ type Config struct {
 }
 
 func Load() (*Config, error) {
-	token := os.Getenv("GITHUB_TOKEN")
+	loadEnvFiles()
 
+	token := os.Getenv("GITHUB_TOKEN")
 	reposConfig := loadReposConfig()
 
 	return &Config{
 		GitHubToken: token,
 		ReposConfig: reposConfig,
 	}, nil
+}
+
+func loadEnvFiles() {
+	godotenv.Load()
+
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return
+	}
+
+	configDir := filepath.Join(homeDir, ".mcp-repo-monitor")
+	godotenv.Load(filepath.Join(configDir, ".env"))
 }
 
 func loadReposConfig() ReposConfig {

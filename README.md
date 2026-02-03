@@ -29,13 +29,27 @@ internal/
 
 ## Configuration
 
-### Environment Variables
+### 1. Secrets (.env)
 
-- `GITHUB_TOKEN`: Personal access token with `repo`, `workflow`, `read:user` scopes
+Create `.env` file in the project root or `~/.mcp-repo-monitor/.env`:
 
-### Branch Configuration
+```bash
+cp .env.example .env
+# Edit .env and add your GitHub token
+```
 
-Create `~/.mcp-repo-monitor/repos.json`:
+```env
+GITHUB_TOKEN=ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+```
+
+**Required token scopes:**
+- `repo` - Full access to repositories
+- `workflow` - Execute workflows
+- `read:user` - Read user profile
+
+### 2. Branch Configuration (JSON)
+
+Create `~/.mcp-repo-monitor/repos.json` for repository-specific branch mapping:
 
 ```json
 {
@@ -47,10 +61,19 @@ Create `~/.mcp-repo-monitor/repos.json`:
     "my-org/webapp": {
       "prod_branch": "main",
       "dev_branch": "develop"
+    },
+    "my-org/api": {
+      "prod_branch": "production",
+      "dev_branch": "main"
     }
   }
 }
 ```
+
+The configuration loads in this order:
+1. `.env` in current directory
+2. `~/.mcp-repo-monitor/.env` (fallback)
+3. `~/.mcp-repo-monitor/repos.json` (branch mapping)
 
 ## Usage
 

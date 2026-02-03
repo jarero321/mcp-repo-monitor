@@ -31,7 +31,7 @@ internal/
 
 ### 1. Secrets (.env)
 
-Create `.env` file in the project root or `~/.mcp-repo-monitor/.env`:
+Create `.env` file in the project root:
 
 ```bash
 cp .env.example .env
@@ -70,29 +70,51 @@ Create `~/.mcp-repo-monitor/repos.json` for repository-specific branch mapping:
 }
 ```
 
-The configuration loads in this order:
-1. `.env` in current directory
-2. `~/.mcp-repo-monitor/.env` (fallback)
-3. `~/.mcp-repo-monitor/repos.json` (branch mapping)
-
 ## Usage
+
+### Native
 
 ```bash
 make build      # Build binary
 make run        # Run stdio mode
-make run-sse    # Run SSE mode
 make inspect    # MCP Inspector UI
 ```
 
-## Claude Integration
+### Docker
 
-Add to `~/.claude/settings.json`:
+```bash
+make docker-build   # Build image
+make docker-run     # Run container (requires .env)
+```
+
+Or with docker-compose:
+
+```bash
+docker-compose up --build
+```
+
+## Claude Code Integration
+
+### Option 1: Native binary
 
 ```json
 {
   "mcpServers": {
     "repo-monitor": {
       "command": "/path/to/mcp-repo-monitor/bin/mcp-repo-monitor"
+    }
+  }
+}
+```
+
+### Option 2: Docker
+
+```json
+{
+  "mcpServers": {
+    "repo-monitor": {
+      "command": "docker",
+      "args": ["run", "-i", "--rm", "--env-file", "/path/to/.env", "mcp-repo-monitor"]
     }
   }
 }

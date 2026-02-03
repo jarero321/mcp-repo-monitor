@@ -1,8 +1,9 @@
-.PHONY: build run run-sse inspect clean test tidy
+.PHONY: build run run-sse inspect clean test tidy docker-build docker-run
 
 BINARY_NAME=mcp-repo-monitor
 BUILD_DIR=bin
 SSE_PORT=8080
+IMAGE_NAME=mcp-repo-monitor
 
 build:
 	@echo "Building..."
@@ -27,5 +28,11 @@ test:
 
 tidy:
 	go mod tidy
+
+docker-build:
+	docker build -t $(IMAGE_NAME) .
+
+docker-run: docker-build
+	docker run -it --rm --env-file .env $(IMAGE_NAME)
 
 .DEFAULT_GOAL := build

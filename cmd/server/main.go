@@ -8,18 +8,23 @@ import (
 	"github.com/carlos/mcp-repo-monitor/config"
 	"github.com/carlos/mcp-repo-monitor/internal/application/usecase"
 	"github.com/carlos/mcp-repo-monitor/internal/domain/service"
+	"github.com/carlos/mcp-repo-monitor/internal/infrastructure/cache"
 	"github.com/carlos/mcp-repo-monitor/internal/infrastructure/github"
+	"github.com/carlos/mcp-repo-monitor/internal/infrastructure/logging"
 	"github.com/carlos/mcp-repo-monitor/internal/infrastructure/mcp"
 )
 
 func main() {
 	mode := flag.String("mode", "stdio", "Server mode: stdio or sse")
 	addr := flag.String("addr", ":8080", "Address for SSE server")
+	logLevel := flag.String("log-level", "info", "Log level: debug, info, warn, error")
 	flag.Parse()
 
-	cfg, err := config.Load()
+	logger := logging.New(logging.ParseLevel(*logLevel))
+
+	cfg, err := config.Load(logger)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to load config: %v\n", err)
+		logger.Error("failed to load config", "error", err)
 		os.Exit(1)
 	}
 
@@ -28,17 +33,22 @@ func main() {
 		os.Exit(1)
 	}
 
-	ghClient := github.NewClient(cfg.GitHubToken)
+	ghClient := github.NewClient(cfg.GitHubToken, logger)
+
+	// Create cache for frequently accessed data
+	apiCache := cache.New(cache.DefaultConfig())
+	cachedClient := github.NewCachedClient(ghClient, apiCache, logger)
 
 	driftDetector := service.NewDriftDetector()
 	rollbackService := service.NewRollbackService()
 
-	listStatus := usecase.NewListStatusUseCase(ghClient)
-	listPRs := usecase.NewListPRsUseCase(ghClient)
-	checkCI := usecase.NewCheckCIUseCase(ghClient)
+	// Use cached client for read-heavy use cases
+	listStatus := usecase.NewListStatusUseCase(cachedClient)
+	listPRs := usecase.NewListPRsUseCase(cachedClient)
+	checkCI := usecase.NewCheckCIUseCase(ghClient) // CI status should be real-time
 	triggerRollback := usecase.NewTriggerRollbackUseCase(ghClient, rollbackService)
-	recentCommits := usecase.NewRecentCommitsUseCase(ghClient)
-	checkDrift := usecase.NewCheckDriftUseCase(ghClient, cfg, driftDetector)
+	recentCommits := usecase.NewRecentCommitsUseCase(ghClient) // Commits should be real-time
+	checkDrift := usecase.NewCheckDriftUseCase(ghClient, cfg, driftDetector) // Drift needs real-time
 	createSyncPR := usecase.NewCreateSyncPRUseCase(ghClient, cfg)
 
 	presenter := mcp.NewPresenter()

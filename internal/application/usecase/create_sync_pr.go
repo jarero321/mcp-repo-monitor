@@ -38,7 +38,7 @@ func (uc *CreateSyncPRUseCase) Execute(ctx context.Context, input CreateSyncPRIn
 
 	branchConfig := uc.config.GetBranchConfig(input.Repository)
 
-	comparison, err := uc.client.CompareBranches(ctx, owner, repo, branchConfig.DevBranch, branchConfig.ProdBranch)
+	comparison, err := uc.client.CompareBranches(ctx, owner, repo, branchConfig.ProdBranch, branchConfig.DevBranch)
 	if err != nil {
 		return nil, fmt.Errorf("failed to compare branches: %w", err)
 	}

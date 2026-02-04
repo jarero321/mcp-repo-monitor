@@ -42,7 +42,9 @@ func (uc *CheckDriftUseCase) Execute(ctx context.Context, input CheckDriftInput)
 		if err != nil {
 			return nil, err
 		}
-		results = append(results, *result)
+		if result != nil {
+			results = append(results, *result)
+		}
 	} else {
 		repos, err := uc.client.ListRepositories(ctx, "", false)
 		if err != nil {

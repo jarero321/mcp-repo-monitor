@@ -2,28 +2,67 @@ package github
 
 import (
 	"context"
+	"net/http"
 	"strings"
 	"time"
 
 	"github.com/carlos/mcp-repo-monitor/internal/domain/entity"
+	"github.com/carlos/mcp-repo-monitor/internal/infrastructure/logging"
 	"github.com/google/go-github/v60/github"
 	"golang.org/x/oauth2"
 )
 
 type Client struct {
-	gh *github.Client
+	gh          *github.Client
+	rateLimiter *RateLimiter
+	retryer     *Retryer
+	logger      *logging.Logger
 }
 
-func NewClient(token string) *Client {
+// rateLimitTransport wraps http.RoundTripper to capture rate limit headers.
+type rateLimitTransport struct {
+	base        http.RoundTripper
+	rateLimiter *RateLimiter
+}
+
+func (t *rateLimitTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	resp, err := t.base.RoundTrip(req)
+	if resp != nil {
+		t.rateLimiter.UpdateFromResponse(resp)
+	}
+	return resp, err
+}
+
+func NewClient(token string, logger *logging.Logger) *Client {
+	clientLogger := logger.WithComponent("github")
+	rateLimiter := NewRateLimiter(10, logger)
+	retryer := NewRetryer(DefaultRetryConfig(), logger)
+
 	ctx := context.Background()
 	ts := oauth2.StaticTokenSource(
 		&oauth2.Token{AccessToken: token},
 	)
-	tc := oauth2.NewClient(ctx, ts)
-	return &Client{gh: github.NewClient(tc)}
+	baseClient := oauth2.NewClient(ctx, ts)
+
+	// Wrap transport to capture rate limit headers
+	baseClient.Transport = &rateLimitTransport{
+		base:        baseClient.Transport,
+		rateLimiter: rateLimiter,
+	}
+
+	clientLogger.Info("github client initialized")
+
+	return &Client{
+		gh:          github.NewClient(baseClient),
+		rateLimiter: rateLimiter,
+		retryer:     retryer,
+		logger:      clientLogger,
+	}
 }
 
 func (c *Client) ListRepositories(ctx context.Context, filter string, includeArchived bool) ([]entity.Repository, error) {
+	c.rateLimiter.Wait()
+
 	opts := &github.RepositoryListOptions{
 		Affiliation: "owner,organization_member",
 		Sort:        "updated",
@@ -32,7 +71,14 @@ func (c *Client) ListRepositories(ctx context.Context, filter string, includeArc
 
 	var allRepos []entity.Repository
 	for {
-		repos, resp, err := c.gh.Repositories.List(ctx, "", opts)
+		var repos []*github.Repository
+		var resp *github.Response
+
+		err := c.retryer.Do(ctx, "ListRepositories", func() error {
+			var err error
+			repos, resp, err = c.gh.Repositories.List(ctx, "", opts)
+			return err
+		})
 		if err != nil {
 			return nil, err
 		}
@@ -54,11 +100,19 @@ func (c *Client) ListRepositories(ctx context.Context, filter string, includeArc
 		opts.Page = resp.NextPage
 	}
 
+	c.logger.Debug("listed repositories", "count", len(allRepos))
 	return allRepos, nil
 }
 
 func (c *Client) GetRepository(ctx context.Context, owner, repo string) (*entity.Repository, error) {
-	r, _, err := c.gh.Repositories.Get(ctx, owner, repo)
+	c.rateLimiter.Wait()
+
+	var r *github.Repository
+	err := c.retryer.Do(ctx, "GetRepository", func() error {
+		var err error
+		r, _, err = c.gh.Repositories.Get(ctx, owner, repo)
+		return err
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -150,6 +204,8 @@ func (c *Client) GetPullRequest(ctx context.Context, owner, repo string, number 
 }
 
 func (c *Client) CreatePullRequest(ctx context.Context, owner, repo, title, body, head, base string) (*entity.PullRequest, error) {
+	c.rateLimiter.Wait()
+
 	newPR := &github.NewPullRequest{
 		Title: &title,
 		Body:  &body,
@@ -157,10 +213,22 @@ func (c *Client) CreatePullRequest(ctx context.Context, owner, repo, title, body
 		Base:  &base,
 	}
 
-	pr, _, err := c.gh.PullRequests.Create(ctx, owner, repo, newPR)
+	var pr *github.PullRequest
+	err := c.retryer.Do(ctx, "CreatePullRequest", func() error {
+		var err error
+		pr, _, err = c.gh.PullRequests.Create(ctx, owner, repo, newPR)
+		return err
+	})
 	if err != nil {
 		return nil, err
 	}
+
+	c.logger.Info("created pull request",
+		"repo", owner+"/"+repo,
+		"number", pr.GetNumber(),
+		"head", head,
+		"base", base,
+	)
 
 	result := toPullRequest(pr, owner+"/"+repo)
 	return &result, nil
@@ -287,7 +355,14 @@ func (c *Client) TriggerWorkflow(ctx context.Context, owner, repo, workflowID, r
 }
 
 func (c *Client) CompareBranches(ctx context.Context, owner, repo, base, head string) (*entity.BranchComparison, error) {
-	comparison, _, err := c.gh.Repositories.CompareCommits(ctx, owner, repo, base, head, nil)
+	c.rateLimiter.Wait()
+
+	var comparison *github.CommitsComparison
+	err := c.retryer.Do(ctx, "CompareBranches", func() error {
+		var err error
+		comparison, _, err = c.gh.Repositories.CompareCommits(ctx, owner, repo, base, head, nil)
+		return err
+	})
 	if err != nil {
 		return nil, err
 	}

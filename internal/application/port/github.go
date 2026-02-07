@@ -12,7 +12,7 @@ type GitHubClient interface {
 
 	ListPullRequests(ctx context.Context, filter entity.PRFilter) ([]entity.PullRequest, error)
 	GetPullRequest(ctx context.Context, owner, repo string, number int) (*entity.PullRequest, error)
-	CreatePullRequest(ctx context.Context, owner, repo, title, body, head, base string) (*entity.PullRequest, error)
+	CreatePullRequest(ctx context.Context, owner, repo, title, body, head, base string, draft bool) (*entity.PullRequest, error)
 
 	ListCommits(ctx context.Context, filter entity.CommitFilter) ([]entity.Commit, error)
 

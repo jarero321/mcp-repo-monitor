@@ -13,7 +13,7 @@ type MockGitHubClient struct {
 	GetRepositoryFunc      func(ctx context.Context, owner, repo string) (*entity.Repository, error)
 	ListPullRequestsFunc   func(ctx context.Context, filter entity.PRFilter) ([]entity.PullRequest, error)
 	GetPullRequestFunc     func(ctx context.Context, owner, repo string, number int) (*entity.PullRequest, error)
-	CreatePullRequestFunc  func(ctx context.Context, owner, repo, title, body, head, base string) (*entity.PullRequest, error)
+	CreatePullRequestFunc  func(ctx context.Context, owner, repo, title, body, head, base string, draft bool) (*entity.PullRequest, error)
 	ListCommitsFunc        func(ctx context.Context, filter entity.CommitFilter) ([]entity.Commit, error)
 	ListWorkflowRunsFunc   func(ctx context.Context, filter entity.CIFilter) ([]entity.WorkflowRun, error)
 	RerunWorkflowFunc      func(ctx context.Context, owner, repo string, runID int64) error
@@ -32,6 +32,7 @@ type CompareBranchesCall struct {
 
 type CreatePRCall struct {
 	Owner, Repo, Title, Body, Head, Base string
+	Draft                                bool
 }
 
 func NewMockGitHubClient() *MockGitHubClient {
@@ -69,7 +70,7 @@ func (m *MockGitHubClient) GetPullRequest(ctx context.Context, owner, repo strin
 	return &entity.PullRequest{}, nil
 }
 
-func (m *MockGitHubClient) CreatePullRequest(ctx context.Context, owner, repo, title, body, head, base string) (*entity.PullRequest, error) {
+func (m *MockGitHubClient) CreatePullRequest(ctx context.Context, owner, repo, title, body, head, base string, draft bool) (*entity.PullRequest, error) {
 	m.CreatePRCalls = append(m.CreatePRCalls, CreatePRCall{
 		Owner: owner,
 		Repo:  repo,
@@ -77,9 +78,10 @@ func (m *MockGitHubClient) CreatePullRequest(ctx context.Context, owner, repo, t
 		Body:  body,
 		Head:  head,
 		Base:  base,
+		Draft: draft,
 	})
 	if m.CreatePullRequestFunc != nil {
-		return m.CreatePullRequestFunc(ctx, owner, repo, title, body, head, base)
+		return m.CreatePullRequestFunc(ctx, owner, repo, title, body, head, base, draft)
 	}
 	return &entity.PullRequest{Number: 1, HTMLURL: "https://github.com/test/repo/pull/1"}, nil
 }

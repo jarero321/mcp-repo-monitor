@@ -272,6 +272,43 @@ func (p *Presenter) FormatSyncPRResult(result *entity.SyncPRResult) string {
 	return sb.String()
 }
 
+func (p *Presenter) FormatCreatePRResult(result *usecase.CreatePRResult) string {
+	var sb strings.Builder
+	sb.WriteString("┌─────────────────────────────────────────────────────────────────┐\n")
+	sb.WriteString("│ CREATE PR RESULT                                                │\n")
+	sb.WriteString("├─────────────────────────────────────────────────────────────────┤\n")
+
+	status := "✓"
+	if !result.Success {
+		status = "✗"
+	}
+
+	sb.WriteString(fmt.Sprintf("│ %s %s\n", status, result.Message))
+
+	if result.PR != nil {
+		draftLabel := ""
+		if result.PR.Draft {
+			draftLabel = " (draft)"
+		}
+		sb.WriteString(fmt.Sprintf("│   PR #%d%s                                                      │\n", result.PR.Number, draftLabel))
+		sb.WriteString(fmt.Sprintf("│   %s → %s\n", result.PR.HeadBranch, result.PR.BaseBranch))
+		if result.PR.HTMLURL != "" {
+			sb.WriteString(fmt.Sprintf("│   %s\n", result.PR.HTMLURL))
+		}
+	}
+
+	if result.FilesChanged > 0 || result.Commits > 0 {
+		sb.WriteString(fmt.Sprintf("│   Files: %d │ Commits: %d                                       │\n",
+			result.FilesChanged,
+			result.Commits,
+		))
+	}
+
+	sb.WriteString("└─────────────────────────────────────────────────────────────────┘\n")
+
+	return sb.String()
+}
+
 func truncate(s string, maxLen int) string {
 	if len(s) <= maxLen {
 		return s

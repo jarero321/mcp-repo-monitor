@@ -75,7 +75,7 @@ func (uc *CreateSyncPRUseCase) Execute(ctx context.Context, input CreateSyncPRIn
 		}, nil
 	}
 
-	pr, err := uc.client.CreatePullRequest(ctx, owner, repo, title, body, branchConfig.ProdBranch, branchConfig.DevBranch)
+	pr, err := uc.client.CreatePullRequest(ctx, owner, repo, title, body, branchConfig.ProdBranch, branchConfig.DevBranch, false)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create PR: %w", err)
 	}

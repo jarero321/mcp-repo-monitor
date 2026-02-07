@@ -203,7 +203,7 @@ func (c *Client) GetPullRequest(ctx context.Context, owner, repo string, number 
 	return &result, nil
 }
 
-func (c *Client) CreatePullRequest(ctx context.Context, owner, repo, title, body, head, base string) (*entity.PullRequest, error) {
+func (c *Client) CreatePullRequest(ctx context.Context, owner, repo, title, body, head, base string, draft bool) (*entity.PullRequest, error) {
 	c.rateLimiter.Wait()
 
 	newPR := &github.NewPullRequest{
@@ -211,6 +211,7 @@ func (c *Client) CreatePullRequest(ctx context.Context, owner, repo, title, body
 		Body:  &body,
 		Head:  &head,
 		Base:  &base,
+		Draft: &draft,
 	}
 
 	var pr *github.PullRequest

@@ -1,27 +1,54 @@
+<img width="100%" src="https://capsule-render.vercel.app/api?type=waving&color=gradient&customColorList=0,2,5,30&height=180&section=header&text=mcp-repo-monitor&fontSize=36&fontColor=fff&animation=fadeIn&fontAlignY=32" />
+
 <div align="center">
 
-```
-                                                    _ _
- _ __ ___ _ __   ___        _ __ ___   ___  _ __ (_) |_ ___  _ __
-| '_ ` _ \ '_ \ / __|_____ | '_ ` _ \ / _ \| '_ \| | __/ _ \| '__|
-| | | | | | |_) | (_|_____|| | | | | | (_) | | | | | || (_) | |
-|_| |_| |_| .__/ \___|     |_| |_| |_|\___/|_| |_|_|\__\___/|_|
-          |_|
-```
+![Go](https://img.shields.io/badge/Go-00ADD8?style=for-the-badge&logo=go&logoColor=white)
+![MCP](https://img.shields.io/badge/MCP-Protocol-7c3aed?style=for-the-badge)
+![Tools](https://img.shields.io/badge/tools-8-00d4ff?style=for-the-badge)
+![License](https://img.shields.io/github/license/jarero321/mcp-repo-monitor?style=for-the-badge)
 
-### I wanted Claude to manage my GitHub repos. So I built an MCP server for it.
+**MCP server for GitHub automation via Claude Code. 8 tools, zero context-switching.**
 
-![Go](https://img.shields.io/badge/Go-00ADD8?logo=go&logoColor=white)
-![MCP](https://img.shields.io/badge/MCP-Protocol-7c3aed)
-[![License](https://img.shields.io/badge/license-MIT-brightgreen?style=flat-square)](LICENSE)
+<a href="https://github.com/jarero321/mcp-repo-monitor">
+  <img src="https://img.shields.io/badge/CODE-2ea44f?style=for-the-badge&logo=github&logoColor=white" alt="code" />
+</a>
 
-**7 tools for GitHub automation via Claude Code**
-
-[Tools](#tools) · [Setup](#setup) · [Configuration](#configuration) · [Claude Integration](#claude-code-integration) · [Troubleshooting](#troubleshooting)
+[Tools](#tools) •
+[Setup](#setup) •
+[Configuration](#configuration) •
+[Claude Integration](#claude-code-integration) •
+[Architecture](#architecture)
 
 </div>
 
 ---
+
+## Features
+
+| Feature | Description |
+|:--------|:------------|
+| **8 MCP Tools** | PRs, CI, drift, rollback, commits, sync, and general PR creation |
+| **Clean Architecture** | Domain, application, and infrastructure layers with DI |
+| **Rate Limiting** | Automatic GitHub API rate limit tracking and throttling |
+| **Retry with Backoff** | Exponential backoff for transient failures (429, 5xx) |
+| **In-Memory Cache** | TTL-based caching (5 min) for frequently accessed data |
+| **Dual Mode** | Run as stdio (Claude) or SSE (HTTP) server |
+| **Docker Support** | Build and run with Docker or docker-compose |
+| **Branch Config** | Per-repo branch customization via `repos.json` |
+
+## Tech Stack
+
+<div align="center">
+
+**Languages & Frameworks**
+
+<img src="https://skillicons.dev/icons?i=go&perline=8" alt="languages" />
+
+**Infrastructure & Tools**
+
+<img src="https://skillicons.dev/icons?i=docker,github,githubactions&perline=8" alt="infra" />
+
+</div>
 
 ## Why I Built This
 
@@ -36,15 +63,16 @@ Now I ask Claude: "Any failing CI runs?" and get instant answers.
 
 ## Tools
 
-| Tool | What it does |
-|------|--------------|
+| Tool | Description |
+|:-----|:------------|
 | `repo_list_status` | All repos with open PRs, CI status, last activity |
 | `repo_list_prs` | Open pull requests across repos |
 | `repo_check_ci` | GitHub Actions status for any branch |
 | `repo_trigger_rollback` | Execute rollback strategies (rerun, revert, workflow) |
 | `repo_recent_commits` | Recent commits with filters |
 | `repo_check_drift` | Detect prod/dev branch differences |
-| `repo_create_sync_pr` | Create PR to sync branches |
+| `repo_create_sync_pr` | Create PR to sync prod into dev |
+| `repo_create_pr` | Create PR between any two branches |
 
 ### Tool Examples
 
@@ -76,11 +104,11 @@ Now I ask Claude: "Any failing CI runs?" and get instant answers.
 "Show drift for my-org/api"
 ```
 
-#### Sync PRs
+#### Sync & PR Creation
 ```
 "Create a sync PR for my-org/api"
 "Preview sync PR for my-repo (dry run)"
-"Sync production into develop for all drifted repos"
+"Create a PR from feature/auth to develop"
 ```
 
 #### Rollback Operations
@@ -129,17 +157,13 @@ Create `~/.mcp-repo-monitor/repos.json` to customize branch names per repository
     "my-org/api": {
       "prod_branch": "production",
       "dev_branch": "main"
-    },
-    "my-org/frontend": {
-      "prod_branch": "release",
-      "dev_branch": "develop"
     }
   }
 }
 ```
 
 | Field | Description |
-|-------|-------------|
+|:------|:------------|
 | `default.prod_branch` | Production branch name (default: `main`) |
 | `default.dev_branch` | Development branch name (default: `develop`) |
 | `repositories.<repo>` | Override branches for specific `owner/repo` |
@@ -163,7 +187,9 @@ Create `~/.mcp-repo-monitor/repos.json` to customize branch names per repository
 ```bash
 make build      # Build binary
 make run        # Run stdio mode
+make run-sse    # Run SSE server on :8080
 make inspect    # MCP Inspector UI
+make test       # Run all tests
 ```
 
 ### Docker
@@ -171,14 +197,6 @@ make inspect    # MCP Inspector UI
 ```bash
 make docker-build
 make docker-run
-```
-
-### Debug Mode
-
-Run with verbose logging:
-
-```bash
-./bin/mcp-repo-monitor --log-level=debug
 ```
 
 ---
@@ -234,24 +252,26 @@ Clean Architecture with Go:
 ```
 internal/
 ├── domain/           # Entities & business logic
-│   ├── entity/       # Repository, PR, Commit, Workflow
+│   ├── entity/       # Repository, PR, Commit, Workflow, Branch
 │   └── service/      # DriftDetector, RollbackService
 ├── application/      # Use cases
 │   ├── port/         # GitHubClient interface
-│   └── usecase/      # 7 use cases
-└── infrastructure/   # External
-    ├── cache/        # In-memory caching
+│   └── usecase/      # 8 use cases
+└── infrastructure/   # External services
+    ├── cache/        # In-memory TTL caching
     ├── github/       # go-github client with rate limiting & retry
-    ├── logging/      # Structured logging (slog)
-    └── mcp/          # MCP server
+    ├── logging/      # Structured JSON logging (slog)
+    └── mcp/          # MCP server, handlers, presenters
 ```
 
-### Features
-
-- **Rate Limiting**: Automatically respects GitHub API limits
-- **Retry with Backoff**: Handles transient failures (429, 500, 502, 503, 504)
-- **Caching**: In-memory cache for frequently accessed data (5 min TTL)
-- **Structured Logging**: JSON logs to stderr for debugging
+| Aspect | Choice |
+|:-------|:-------|
+| **Architecture** | Clean Architecture with DI |
+| **Language** | Go 1.23 |
+| **GitHub Client** | google/go-github v60 |
+| **MCP Framework** | mark3labs/mcp-go |
+| **Auth** | OAuth2 via golang.org/x/oauth2 |
+| **Caching** | In-memory TTL (5 min default) |
 
 ---
 
@@ -261,9 +281,7 @@ internal/
 
 Ensure your token is set:
 ```bash
-# Check current directory
 cat .env
-
 # Or user config
 cat ~/.mcp-repo-monitor/.env
 ```
@@ -275,38 +293,12 @@ Validate your JSON syntax:
 cat ~/.mcp-repo-monitor/repos.json | jq .
 ```
 
-Common issues:
-- Trailing commas
-- Missing quotes around keys
-- Unclosed brackets
-
-### "invalid branch name"
-
-Branch names cannot:
-- Be empty
-- Contain whitespace
-
-Check your `repos.json`:
-```json
-{
-  "default": {
-    "prod_branch": "main",
-    "dev_branch": "develop"
-  }
-}
-```
-
 ### Rate Limit Errors
 
 The client automatically waits when rate limits are low. For heavy usage:
-
 1. Use a token with higher limits (GitHub Pro/Enterprise)
 2. The cache reduces API calls for repeated queries
-3. Check logs for rate limit warnings: `--log-level=debug`
-
-### "branches are already in sync"
-
-This is expected when `prod_branch` and `dev_branch` have no differences. Use `repo_check_drift` to verify.
+3. Check logs: `--log-level=debug`
 
 ### MCP Connection Issues
 
@@ -314,26 +306,30 @@ This is expected when `prod_branch` and `dev_branch` have no differences. Use `r
    ```bash
    echo '{"jsonrpc":"2.0","method":"initialize","id":1}' | ./bin/mcp-repo-monitor
    ```
-
 2. Check Claude Code logs for errors
-
 3. Ensure the path in settings is absolute
 
 ---
 
 ## Post-Mortems
 
-Documentamos incidentes y bugs críticos para aprender de ellos:
-
-| ID | Fecha | Severidad | Título |
-|----|-------|-----------|--------|
-| [PM-001](docs/postmortem-001-drift-branch-comparison.md) | 2026-02-03 | CRÍTICA | Bug de comparación de ramas invertida en sync PR |
+| ID | Date | Severity | Title |
+|:---|:-----|:---------|:------|
+| [PM-001](docs/postmortem-001-drift-branch-comparison.md) | 2026-02-03 | CRITICAL | Inverted branch comparison in sync PR |
 
 ---
 
+## Contributing
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'feat: add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
 ## License
 
-MIT
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ---
 
@@ -342,3 +338,5 @@ MIT
 **[Report Bug](https://github.com/jarero321/mcp-repo-monitor/issues)** · **[Request Feature](https://github.com/jarero321/mcp-repo-monitor/issues)**
 
 </div>
+
+<img width="100%" src="https://capsule-render.vercel.app/api?type=waving&color=gradient&customColorList=0,2,5,30&height=120&section=footer" />

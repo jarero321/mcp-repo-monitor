@@ -12,7 +12,7 @@
 ### I wanted Claude to manage my GitHub repos. So I built an MCP server for it.
 
 ![Go](https://img.shields.io/badge/Go-00ADD8?logo=go&logoColor=white)
-![MCP](https://img.shields.io/badge/MCP-Protocol-7c3aed?style=flat-square)
+![MCP](https://img.shields.io/badge/MCP-Protocol-7c3aed)
 [![License](https://img.shields.io/badge/license-MIT-brightgreen?style=flat-square)](LICENSE)
 
 **7 tools for GitHub automation via Claude Code**

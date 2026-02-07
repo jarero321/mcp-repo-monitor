@@ -16,6 +16,7 @@ type Handler struct {
 	recentCommits   *usecase.RecentCommitsUseCase
 	checkDrift      *usecase.CheckDriftUseCase
 	createSyncPR    *usecase.CreateSyncPRUseCase
+	createPR        *usecase.CreatePRUseCase
 	presenter       *Presenter
 }
 
@@ -27,6 +28,7 @@ func NewHandler(
 	recentCommits *usecase.RecentCommitsUseCase,
 	checkDrift *usecase.CheckDriftUseCase,
 	createSyncPR *usecase.CreateSyncPRUseCase,
+	createPR *usecase.CreatePRUseCase,
 	presenter *Presenter,
 ) *Handler {
 	return &Handler{
@@ -37,6 +39,7 @@ func NewHandler(
 		recentCommits:   recentCommits,
 		checkDrift:      checkDrift,
 		createSyncPR:    createSyncPR,
+		createPR:        createPR,
 		presenter:       presenter,
 	}
 }
@@ -181,6 +184,47 @@ func (h *Handler) HandleCreateSyncPR(ctx context.Context, req mcp.CallToolReques
 	}
 
 	return mcp.NewToolResultText(h.presenter.FormatSyncPRResult(result)), nil
+}
+
+func (h *Handler) HandleCreatePR(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	args := getArgs(req)
+
+	repo := getString(args, "repo")
+	if repo == "" {
+		return mcp.NewToolResultError("repo parameter is required"), nil
+	}
+
+	title := getString(args, "title")
+	if title == "" {
+		return mcp.NewToolResultError("title parameter is required"), nil
+	}
+
+	head := getString(args, "head")
+	if head == "" {
+		return mcp.NewToolResultError("head parameter is required"), nil
+	}
+
+	base := getString(args, "base")
+	if base == "" {
+		return mcp.NewToolResultError("base parameter is required"), nil
+	}
+
+	input := usecase.CreatePRInput{
+		Repository: repo,
+		Title:      title,
+		Head:       head,
+		Base:       base,
+		Body:       getString(args, "body"),
+		Draft:      getBool(args, "draft"),
+		DryRun:     getBool(args, "dry_run"),
+	}
+
+	result, err := h.createPR.Execute(ctx, input)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to create PR: %v", err)), nil
+	}
+
+	return mcp.NewToolResultText(h.presenter.FormatCreatePRResult(result)), nil
 }
 
 func getArgs(req mcp.CallToolRequest) map[string]any {

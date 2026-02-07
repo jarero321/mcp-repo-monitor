@@ -50,6 +50,7 @@ func main() {
 	recentCommits := usecase.NewRecentCommitsUseCase(ghClient) // Commits should be real-time
 	checkDrift := usecase.NewCheckDriftUseCase(ghClient, cfg, driftDetector) // Drift needs real-time
 	createSyncPR := usecase.NewCreateSyncPRUseCase(ghClient, cfg)
+	createPR := usecase.NewCreatePRUseCase(ghClient)
 
 	presenter := mcp.NewPresenter()
 	handler := mcp.NewHandler(
@@ -60,6 +61,7 @@ func main() {
 		recentCommits,
 		checkDrift,
 		createSyncPR,
+		createPR,
 		presenter,
 	)
 	server := mcp.NewServer(handler)

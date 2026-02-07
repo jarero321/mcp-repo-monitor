@@ -150,6 +150,38 @@ func (s *Server) registerTools() {
 		),
 		s.handler.HandleCreateSyncPR,
 	)
+
+	s.mcpServer.AddTool(
+		mcp.NewTool("repo_create_pr",
+			mcp.WithDescription("Create a pull request between any two branches"),
+			mcp.WithString("repo",
+				mcp.Description("Repository in owner/repo format"),
+				mcp.Required(),
+			),
+			mcp.WithString("title",
+				mcp.Description("PR title"),
+				mcp.Required(),
+			),
+			mcp.WithString("head",
+				mcp.Description("Source branch"),
+				mcp.Required(),
+			),
+			mcp.WithString("base",
+				mcp.Description("Target branch"),
+				mcp.Required(),
+			),
+			mcp.WithString("body",
+				mcp.Description("PR description (markdown)"),
+			),
+			mcp.WithBoolean("draft",
+				mcp.Description("Create as draft PR"),
+			),
+			mcp.WithBoolean("dry_run",
+				mcp.Description("Preview without creating"),
+			),
+		),
+		s.handler.HandleCreatePR,
+	)
 }
 
 func (s *Server) ServeStdio() error {

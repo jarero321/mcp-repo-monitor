@@ -19,7 +19,7 @@ func TestCreateSyncPRUseCase_Execute_Success(t *testing.T) {
 			Files:        []entity.ChangedFile{{Filename: "test.go"}},
 		}, nil
 	}
-	mockClient.CreatePullRequestFunc = func(ctx context.Context, owner, repo, title, body, head, base string) (*entity.PullRequest, error) {
+	mockClient.CreatePullRequestFunc = func(ctx context.Context, owner, repo, title, body, head, base string, draft bool) (*entity.PullRequest, error) {
 		return &entity.PullRequest{
 			Number:  42,
 			HTMLURL: "https://github.com/test/repo/pull/42",
@@ -174,7 +174,7 @@ func TestCreateSyncPRUseCase_Execute_CustomTitle(t *testing.T) {
 	mockClient.CompareBranchesFunc = func(ctx context.Context, owner, repo, base, head string) (*entity.BranchComparison, error) {
 		return &entity.BranchComparison{TotalCommits: 1}, nil
 	}
-	mockClient.CreatePullRequestFunc = func(ctx context.Context, owner, repo, title, body, head, base string) (*entity.PullRequest, error) {
+	mockClient.CreatePullRequestFunc = func(ctx context.Context, owner, repo, title, body, head, base string, draft bool) (*entity.PullRequest, error) {
 		return &entity.PullRequest{Number: 1}, nil
 	}
 
@@ -268,7 +268,7 @@ func TestCreateSyncPRUseCase_Execute_CreatePRError(t *testing.T) {
 	mockClient.CompareBranchesFunc = func(ctx context.Context, owner, repo, base, head string) (*entity.BranchComparison, error) {
 		return &entity.BranchComparison{TotalCommits: 1}, nil
 	}
-	mockClient.CreatePullRequestFunc = func(ctx context.Context, owner, repo, title, body, head, base string) (*entity.PullRequest, error) {
+	mockClient.CreatePullRequestFunc = func(ctx context.Context, owner, repo, title, body, head, base string, draft bool) (*entity.PullRequest, error) {
 		return nil, errors.New("PR creation failed")
 	}
 
@@ -302,7 +302,7 @@ func TestCreateSyncPRUseCase_Execute_CustomBranchConfig(t *testing.T) {
 	mockClient.CompareBranchesFunc = func(ctx context.Context, owner, repo, base, head string) (*entity.BranchComparison, error) {
 		return &entity.BranchComparison{TotalCommits: 1}, nil
 	}
-	mockClient.CreatePullRequestFunc = func(ctx context.Context, owner, repo, title, body, head, base string) (*entity.PullRequest, error) {
+	mockClient.CreatePullRequestFunc = func(ctx context.Context, owner, repo, title, body, head, base string, draft bool) (*entity.PullRequest, error) {
 		return &entity.PullRequest{Number: 1}, nil
 	}
 

@@ -272,6 +272,57 @@ func (p *Presenter) FormatSyncPRResult(result *entity.SyncPRResult) string {
 	return sb.String()
 }
 
+func (p *Presenter) FormatMergeResult(result *entity.MergeResult) string {
+	var sb strings.Builder
+	sb.WriteString("┌─────────────────────────────────────────────────────────────────┐\n")
+	sb.WriteString("│ MERGE PR RESULT                                                 │\n")
+	sb.WriteString("├─────────────────────────────────────────────────────────────────┤\n")
+
+	status := "✓"
+	if !result.Success {
+		status = "✗"
+	}
+
+	sb.WriteString(fmt.Sprintf("│ %s %s\n", status, result.Message))
+
+	if result.PRNumber > 0 {
+		sb.WriteString(fmt.Sprintf("│   PR #%d │ Method: %-10s                                   │\n",
+			result.PRNumber,
+			result.MergeMethod,
+		))
+	}
+	if result.SHA != "" {
+		sb.WriteString(fmt.Sprintf("│   SHA: %s\n", result.SHA))
+	}
+	if result.PRURL != "" {
+		sb.WriteString(fmt.Sprintf("│   %s\n", result.PRURL))
+	}
+	if result.BranchDeleted {
+		sb.WriteString(fmt.Sprintf("│   Branch '%s' deleted                                          │\n", result.BranchName))
+	}
+
+	sb.WriteString("└─────────────────────────────────────────────────────────────────┘\n")
+
+	return sb.String()
+}
+
+func (p *Presenter) FormatDeleteBranchResult(result *usecase.DeleteBranchResult) string {
+	var sb strings.Builder
+	sb.WriteString("┌─────────────────────────────────────────────────────────────────┐\n")
+	sb.WriteString("│ DELETE BRANCH RESULT                                            │\n")
+	sb.WriteString("├─────────────────────────────────────────────────────────────────┤\n")
+
+	status := "✓"
+	if !result.Success {
+		status = "✗"
+	}
+
+	sb.WriteString(fmt.Sprintf("│ %s %s\n", status, result.Message))
+	sb.WriteString("└─────────────────────────────────────────────────────────────────┘\n")
+
+	return sb.String()
+}
+
 func (p *Presenter) FormatCreatePRResult(result *usecase.CreatePRResult) string {
 	var sb strings.Builder
 	sb.WriteString("┌─────────────────────────────────────────────────────────────────┐\n")

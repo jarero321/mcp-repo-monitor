@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	"github.com/carlos/mcp-repo-monitor/config"
@@ -56,7 +57,7 @@ func (uc *CheckDriftUseCase) Execute(ctx context.Context, input CheckDriftInput)
 			if err != nil {
 				continue
 			}
-			if result.Comparison.TotalCommits > 0 {
+			if len(result.Comparison.Files) > 0 {
 				results = append(results, *result)
 			}
 		}
@@ -68,7 +69,7 @@ func (uc *CheckDriftUseCase) Execute(ctx context.Context, input CheckDriftInput)
 func (uc *CheckDriftUseCase) checkSingleRepo(ctx context.Context, repoFullName string) (*DriftResult, error) {
 	parts := strings.Split(repoFullName, "/")
 	if len(parts) != 2 {
-		return nil, nil
+		return nil, fmt.Errorf("invalid repository format '%s', expected owner/repo", repoFullName)
 	}
 	owner, repo := parts[0], parts[1]
 

@@ -2,6 +2,7 @@ package github
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -392,9 +393,63 @@ func (c *Client) CompareBranches(ctx context.Context, owner, repo, base, head st
 		AheadBy:      comparison.GetAheadBy(),
 		BehindBy:     comparison.GetBehindBy(),
 		TotalCommits: comparison.GetTotalCommits(),
+		GitHubStatus: comparison.GetStatus(),
 		Commits:      commits,
 		Files:        files,
 	}, nil
+}
+
+func (c *Client) MergePullRequest(ctx context.Context, owner, repo string, number int, method, commitTitle string) (*entity.MergeResult, error) {
+	c.rateLimiter.Wait()
+
+	opts := &github.PullRequestOptions{
+		MergeMethod: method,
+	}
+
+	var result *github.PullRequestMergeResult
+	err := c.retryer.Do(ctx, "MergePullRequest", func() error {
+		var err error
+		result, _, err = c.gh.PullRequests.Merge(ctx, owner, repo, number, commitTitle, opts)
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	c.logger.Info("merged pull request",
+		"repo", owner+"/"+repo,
+		"number", number,
+		"method", method,
+	)
+
+	return &entity.MergeResult{
+		Success:     result.GetMerged(),
+		SHA:         result.GetSHA(),
+		Message:     result.GetMessage(),
+		PRURL:       fmt.Sprintf("https://github.com/%s/%s/pull/%d", owner, repo, number),
+		PRNumber:    number,
+		MergeMethod: entity.MergeMethod(method),
+	}, nil
+}
+
+func (c *Client) DeleteBranch(ctx context.Context, owner, repo, branch string) error {
+	c.rateLimiter.Wait()
+
+	ref := "refs/heads/" + branch
+	err := c.retryer.Do(ctx, "DeleteBranch", func() error {
+		_, err := c.gh.Git.DeleteRef(ctx, owner, repo, ref)
+		return err
+	})
+	if err != nil {
+		return err
+	}
+
+	c.logger.Info("deleted branch",
+		"repo", owner+"/"+repo,
+		"branch", branch,
+	)
+
+	return nil
 }
 
 func (c *Client) GetCurrentUser(ctx context.Context) (string, error) {

@@ -51,6 +51,8 @@ func main() {
 	checkDrift := usecase.NewCheckDriftUseCase(ghClient, cfg, driftDetector) // Drift needs real-time
 	createSyncPR := usecase.NewCreateSyncPRUseCase(ghClient, cfg)
 	createPR := usecase.NewCreatePRUseCase(ghClient)
+	mergePR := usecase.NewMergePRUseCase(ghClient)
+	deleteBranch := usecase.NewDeleteBranchUseCase(ghClient)
 
 	presenter := mcp.NewPresenter()
 	handler := mcp.NewHandler(
@@ -62,6 +64,8 @@ func main() {
 		checkDrift,
 		createSyncPR,
 		createPR,
+		mergePR,
+		deleteBranch,
 		presenter,
 	)
 	server := mcp.NewServer(handler)

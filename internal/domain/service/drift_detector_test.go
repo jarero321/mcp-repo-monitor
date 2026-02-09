@@ -23,28 +23,62 @@ func TestDriftDetector_AnalyzeDrift(t *testing.T) {
 			want: entity.DriftNone,
 		},
 		{
-			name: "prod ahead when ahead > 0 and behind = 0",
+			name: "prod ahead when ahead > 0 and behind = 0 with file changes",
 			comparison: entity.BranchComparison{
 				AheadBy:  5,
 				BehindBy: 0,
+				Files:    []entity.ChangedFile{{Filename: "test.go"}},
 			},
 			want: entity.DriftProdAhead,
 		},
 		{
-			name: "dev ahead when ahead = 0 and behind > 0",
+			name: "dev ahead when ahead = 0 and behind > 0 with file changes",
 			comparison: entity.BranchComparison{
 				AheadBy:  0,
 				BehindBy: 3,
+				Files:    []entity.ChangedFile{{Filename: "test.go"}},
 			},
 			want: entity.DriftDevAhead,
 		},
 		{
-			name: "diverged when both ahead and behind > 0",
+			name: "diverged when both ahead and behind > 0 with file changes",
 			comparison: entity.BranchComparison{
 				AheadBy:  2,
 				BehindBy: 4,
+				Files:    []entity.ChangedFile{{Filename: "test.go"}},
 			},
 			want: entity.DriftDiverged,
+		},
+		{
+			name: "no drift when GitHub reports identical despite merge commits",
+			comparison: entity.BranchComparison{
+				AheadBy:      0,
+				BehindBy:     1,
+				TotalCommits: 1,
+				GitHubStatus: "identical",
+			},
+			want: entity.DriftNone,
+		},
+		{
+			name: "no drift when files empty despite commits ahead",
+			comparison: entity.BranchComparison{
+				AheadBy:      3,
+				BehindBy:     0,
+				TotalCommits: 3,
+				Files:        []entity.ChangedFile{},
+			},
+			want: entity.DriftNone,
+		},
+		{
+			name: "no drift when files nil despite commits ahead (merge commit scenario)",
+			comparison: entity.BranchComparison{
+				AheadBy:      0,
+				BehindBy:     2,
+				TotalCommits: 2,
+				GitHubStatus: "behind",
+				Files:        nil,
+			},
+			want: entity.DriftNone,
 		},
 	}
 
@@ -67,7 +101,7 @@ func TestDriftDetector_HasSignificantDrift(t *testing.T) {
 		want       bool
 	}{
 		{
-			name: "no drift when no commits or files",
+			name: "no drift when no files changed",
 			comparison: entity.BranchComparison{
 				TotalCommits: 0,
 				Files:        nil,
@@ -75,12 +109,12 @@ func TestDriftDetector_HasSignificantDrift(t *testing.T) {
 			want: false,
 		},
 		{
-			name: "has drift when commits > 0",
+			name: "no drift when only merge commits (no file changes)",
 			comparison: entity.BranchComparison{
 				TotalCommits: 5,
 				Files:        nil,
 			},
-			want: true,
+			want: false,
 		},
 		{
 			name: "has drift when files changed",
@@ -119,26 +153,39 @@ func TestDriftDetector_GetDriftSeverity(t *testing.T) {
 			want: "none",
 		},
 		{
-			name: "low when total <= 5",
+			name: "none when files empty despite commits",
+			comparison: entity.BranchComparison{
+				AheadBy:      5,
+				BehindBy:     3,
+				TotalCommits: 8,
+				Files:        nil,
+			},
+			want: "none",
+		},
+		{
+			name: "low when total <= 5 with file changes",
 			comparison: entity.BranchComparison{
 				AheadBy:  3,
 				BehindBy: 2,
+				Files:    []entity.ChangedFile{{Filename: "test.go"}},
 			},
 			want: "low",
 		},
 		{
-			name: "medium when total <= 20",
+			name: "medium when total <= 20 with file changes",
 			comparison: entity.BranchComparison{
 				AheadBy:  10,
 				BehindBy: 5,
+				Files:    []entity.ChangedFile{{Filename: "test.go"}},
 			},
 			want: "medium",
 		},
 		{
-			name: "high when total > 20",
+			name: "high when total > 20 with file changes",
 			comparison: entity.BranchComparison{
 				AheadBy:  15,
 				BehindBy: 10,
+				Files:    []entity.ChangedFile{{Filename: "test.go"}},
 			},
 			want: "high",
 		},

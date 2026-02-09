@@ -43,7 +43,7 @@ func (uc *CreateSyncPRUseCase) Execute(ctx context.Context, input CreateSyncPRIn
 		return nil, fmt.Errorf("failed to compare branches: %w", err)
 	}
 
-	if comparison.TotalCommits == 0 {
+	if comparison.TotalCommits == 0 || len(comparison.Files) == 0 {
 		return &entity.SyncPRResult{
 			Success:  true,
 			Message:  "Branches are already in sync, no PR needed",

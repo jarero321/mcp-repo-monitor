@@ -182,6 +182,51 @@ func (s *Server) registerTools() {
 		),
 		s.handler.HandleCreatePR,
 	)
+
+	s.mcpServer.AddTool(
+		mcp.NewTool("repo_merge_pr",
+			mcp.WithDescription("Merge a pull request"),
+			mcp.WithString("repo",
+				mcp.Description("Repository in owner/repo format"),
+				mcp.Required(),
+			),
+			mcp.WithNumber("pr_number",
+				mcp.Description("Pull request number to merge"),
+				mcp.Required(),
+			),
+			mcp.WithString("method",
+				mcp.Description("Merge method: merge, squash, or rebase (default: merge)"),
+			),
+			mcp.WithString("commit_title",
+				mcp.Description("Custom commit title for the merge"),
+			),
+			mcp.WithBoolean("delete_branch",
+				mcp.Description("Delete the head branch after merging"),
+			),
+			mcp.WithBoolean("dry_run",
+				mcp.Description("Preview the merge without executing"),
+			),
+		),
+		s.handler.HandleMergePR,
+	)
+
+	s.mcpServer.AddTool(
+		mcp.NewTool("repo_delete_branch",
+			mcp.WithDescription("Delete a branch from a repository"),
+			mcp.WithString("repo",
+				mcp.Description("Repository in owner/repo format"),
+				mcp.Required(),
+			),
+			mcp.WithString("branch",
+				mcp.Description("Branch name to delete"),
+				mcp.Required(),
+			),
+			mcp.WithBoolean("dry_run",
+				mcp.Description("Preview without deleting"),
+			),
+		),
+		s.handler.HandleDeleteBranch,
+	)
 }
 
 func (s *Server) ServeStdio() error {

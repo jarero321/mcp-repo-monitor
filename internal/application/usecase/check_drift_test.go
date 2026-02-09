@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/carlos/mcp-repo-monitor/config"
@@ -21,6 +22,7 @@ func TestCheckDriftUseCase_Execute_SingleRepo(t *testing.T) {
 			AheadBy:      5,
 			BehindBy:     0,
 			TotalCommits: 5,
+			Files:        []entity.ChangedFile{{Filename: "main.go"}},
 		}, nil
 	}
 
@@ -83,6 +85,7 @@ func TestCheckDriftUseCase_Execute_AllRepos(t *testing.T) {
 				Repository:   owner + "/" + repo,
 				TotalCommits: 3,
 				AheadBy:      3,
+				Files:        []entity.ChangedFile{{Filename: "a.go"}},
 			}, nil
 		}
 		return &entity.BranchComparison{
@@ -110,13 +113,56 @@ func TestCheckDriftUseCase_Execute_AllRepos(t *testing.T) {
 		t.Fatalf("Execute() error = %v", err)
 	}
 
-	// Only repo1 has drift (TotalCommits > 0)
+	// Only repo1 has drift (has file changes)
 	if len(results) != 1 {
 		t.Fatalf("Execute() returned %d results, want 1 (only repos with drift)", len(results))
 	}
 
 	if results[0].Comparison.Repository != "org/repo1" {
 		t.Errorf("Repository = %s, want org/repo1", results[0].Comparison.Repository)
+	}
+}
+
+func TestCheckDriftUseCase_Execute_AllRepos_MergeCommitsOnly(t *testing.T) {
+	mockClient := port.NewMockGitHubClient()
+	mockClient.ListRepositoriesFunc = func(ctx context.Context, filter string, includeArchived bool) ([]entity.Repository, error) {
+		return []entity.Repository{
+			{FullName: "org/repo1"},
+		}, nil
+	}
+	mockClient.CompareBranchesFunc = func(ctx context.Context, owner, repo, base, head string) (*entity.BranchComparison, error) {
+		// Merge commits but no file changes — false positive scenario
+		return &entity.BranchComparison{
+			Repository:   owner + "/" + repo,
+			TotalCommits: 2,
+			BehindBy:     2,
+			GitHubStatus: "behind",
+			Files:        nil,
+		}, nil
+	}
+
+	cfg := &config.Config{
+		ReposConfig: config.ReposConfig{
+			Default: config.BranchConfig{
+				ProdBranch: "main",
+				DevBranch:  "develop",
+			},
+			Repositories: make(map[string]config.BranchConfig),
+		},
+	}
+
+	driftDetector := service.NewDriftDetector()
+	uc := NewCheckDriftUseCase(mockClient, cfg, driftDetector)
+
+	results, err := uc.Execute(context.Background(), CheckDriftInput{})
+
+	if err != nil {
+		t.Fatalf("Execute() error = %v", err)
+	}
+
+	// No repos should have drift (merge commits only, no file changes)
+	if len(results) != 0 {
+		t.Fatalf("Execute() returned %d results, want 0 (merge commits only)", len(results))
 	}
 }
 
@@ -128,6 +174,7 @@ func TestCheckDriftUseCase_Execute_CustomBranchConfig(t *testing.T) {
 			ProdBranch:   base,
 			DevBranch:    head,
 			TotalCommits: 1,
+			Files:        []entity.ChangedFile{{Filename: "test.go"}},
 		}, nil
 	}
 
@@ -178,17 +225,17 @@ func TestCheckDriftUseCase_Execute_InvalidRepoFormat(t *testing.T) {
 	driftDetector := service.NewDriftDetector()
 	uc := NewCheckDriftUseCase(mockClient, cfg, driftDetector)
 
-	results, err := uc.Execute(context.Background(), CheckDriftInput{
+	_, err := uc.Execute(context.Background(), CheckDriftInput{
 		Repository: "invalid-format",
 	})
 
-	// Should not error, just return nil result
-	if err != nil {
-		t.Fatalf("Execute() error = %v, want nil", err)
+	// Should now return error for invalid format
+	if err == nil {
+		t.Fatal("Execute() error = nil, want error for invalid repo format")
 	}
 
-	if len(results) != 0 {
-		t.Errorf("Execute() returned %d results, want 0", len(results))
+	if !strings.Contains(err.Error(), "invalid repository format") {
+		t.Errorf("error = %v, want to contain 'invalid repository format'", err)
 	}
 }
 

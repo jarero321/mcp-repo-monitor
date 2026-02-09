@@ -8,6 +8,7 @@ type BranchComparison struct {
 	BehindBy     int
 	TotalCommits int
 	Status       DriftStatus
+	GitHubStatus string // Raw status from GitHub API: "identical", "ahead", "behind", "diverged"
 	Commits      []Commit
 	Files        []ChangedFile
 }

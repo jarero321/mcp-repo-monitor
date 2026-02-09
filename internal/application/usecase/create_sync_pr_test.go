@@ -117,6 +117,52 @@ func TestCreateSyncPRUseCase_Execute_AlreadySynced(t *testing.T) {
 	}
 }
 
+func TestCreateSyncPRUseCase_Execute_MergeCommitsNoFiles(t *testing.T) {
+	mockClient := port.NewMockGitHubClient()
+	mockClient.CompareBranchesFunc = func(ctx context.Context, owner, repo, base, head string) (*entity.BranchComparison, error) {
+		// Merge commits but no file changes — should be treated as synced
+		return &entity.BranchComparison{
+			TotalCommits: 3,
+			BehindBy:     3,
+			GitHubStatus: "behind",
+			Files:        nil,
+		}, nil
+	}
+
+	cfg := &config.Config{
+		ReposConfig: config.ReposConfig{
+			Default: config.BranchConfig{
+				ProdBranch: "main",
+				DevBranch:  "develop",
+			},
+			Repositories: make(map[string]config.BranchConfig),
+		},
+	}
+
+	uc := NewCreateSyncPRUseCase(mockClient, cfg)
+
+	result, err := uc.Execute(context.Background(), CreateSyncPRInput{
+		Repository: "test/repo",
+	})
+
+	if err != nil {
+		t.Fatalf("Execute() error = %v", err)
+	}
+
+	if !result.Success {
+		t.Error("Execute() Success = false, want true")
+	}
+
+	if !strings.Contains(result.Message, "already in sync") {
+		t.Errorf("Message = %s, want to contain 'already in sync'", result.Message)
+	}
+
+	// Should not create PR when only merge commits (no file changes)
+	if len(mockClient.CreatePRCalls) != 0 {
+		t.Errorf("CreatePullRequest called %d times, want 0", len(mockClient.CreatePRCalls))
+	}
+}
+
 func TestCreateSyncPRUseCase_Execute_DryRun(t *testing.T) {
 	mockClient := port.NewMockGitHubClient()
 	mockClient.CompareBranchesFunc = func(ctx context.Context, owner, repo, base, head string) (*entity.BranchComparison, error) {
@@ -172,7 +218,7 @@ func TestCreateSyncPRUseCase_Execute_DryRun(t *testing.T) {
 func TestCreateSyncPRUseCase_Execute_CustomTitle(t *testing.T) {
 	mockClient := port.NewMockGitHubClient()
 	mockClient.CompareBranchesFunc = func(ctx context.Context, owner, repo, base, head string) (*entity.BranchComparison, error) {
-		return &entity.BranchComparison{TotalCommits: 1}, nil
+		return &entity.BranchComparison{TotalCommits: 1, Files: []entity.ChangedFile{{Filename: "a.go"}}}, nil
 	}
 	mockClient.CreatePullRequestFunc = func(ctx context.Context, owner, repo, title, body, head, base string, draft bool) (*entity.PullRequest, error) {
 		return &entity.PullRequest{Number: 1}, nil
@@ -266,7 +312,7 @@ func TestCreateSyncPRUseCase_Execute_CompareBranchesError(t *testing.T) {
 func TestCreateSyncPRUseCase_Execute_CreatePRError(t *testing.T) {
 	mockClient := port.NewMockGitHubClient()
 	mockClient.CompareBranchesFunc = func(ctx context.Context, owner, repo, base, head string) (*entity.BranchComparison, error) {
-		return &entity.BranchComparison{TotalCommits: 1}, nil
+		return &entity.BranchComparison{TotalCommits: 1, Files: []entity.ChangedFile{{Filename: "a.go"}}}, nil
 	}
 	mockClient.CreatePullRequestFunc = func(ctx context.Context, owner, repo, title, body, head, base string, draft bool) (*entity.PullRequest, error) {
 		return nil, errors.New("PR creation failed")
@@ -300,7 +346,7 @@ func TestCreateSyncPRUseCase_Execute_CreatePRError(t *testing.T) {
 func TestCreateSyncPRUseCase_Execute_CustomBranchConfig(t *testing.T) {
 	mockClient := port.NewMockGitHubClient()
 	mockClient.CompareBranchesFunc = func(ctx context.Context, owner, repo, base, head string) (*entity.BranchComparison, error) {
-		return &entity.BranchComparison{TotalCommits: 1}, nil
+		return &entity.BranchComparison{TotalCommits: 1, Files: []entity.ChangedFile{{Filename: "a.go"}}}, nil
 	}
 	mockClient.CreatePullRequestFunc = func(ctx context.Context, owner, repo, title, body, head, base string, draft bool) (*entity.PullRequest, error) {
 		return &entity.PullRequest{Number: 1}, nil

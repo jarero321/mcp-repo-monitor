@@ -17,6 +17,8 @@ type Handler struct {
 	checkDrift      *usecase.CheckDriftUseCase
 	createSyncPR    *usecase.CreateSyncPRUseCase
 	createPR        *usecase.CreatePRUseCase
+	mergePR         *usecase.MergePRUseCase
+	deleteBranch    *usecase.DeleteBranchUseCase
 	presenter       *Presenter
 }
 
@@ -29,6 +31,8 @@ func NewHandler(
 	checkDrift *usecase.CheckDriftUseCase,
 	createSyncPR *usecase.CreateSyncPRUseCase,
 	createPR *usecase.CreatePRUseCase,
+	mergePR *usecase.MergePRUseCase,
+	deleteBranch *usecase.DeleteBranchUseCase,
 	presenter *Presenter,
 ) *Handler {
 	return &Handler{
@@ -40,6 +44,8 @@ func NewHandler(
 		checkDrift:      checkDrift,
 		createSyncPR:    createSyncPR,
 		createPR:        createPR,
+		mergePR:         mergePR,
+		deleteBranch:    deleteBranch,
 		presenter:       presenter,
 	}
 }
@@ -225,6 +231,63 @@ func (h *Handler) HandleCreatePR(ctx context.Context, req mcp.CallToolRequest) (
 	}
 
 	return mcp.NewToolResultText(h.presenter.FormatCreatePRResult(result)), nil
+}
+
+func (h *Handler) HandleMergePR(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	args := getArgs(req)
+
+	repo := getString(args, "repo")
+	if repo == "" {
+		return mcp.NewToolResultError("repo parameter is required"), nil
+	}
+
+	prNumber := getInt(args, "pr_number")
+	if prNumber == 0 {
+		return mcp.NewToolResultError("pr_number parameter is required"), nil
+	}
+
+	input := usecase.MergePRInput{
+		Repository:   repo,
+		PRNumber:     prNumber,
+		Method:       getString(args, "method"),
+		CommitTitle:  getString(args, "commit_title"),
+		DeleteBranch: getBool(args, "delete_branch"),
+		DryRun:       getBool(args, "dry_run"),
+	}
+
+	result, err := h.mergePR.Execute(ctx, input)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to merge PR: %v", err)), nil
+	}
+
+	return mcp.NewToolResultText(h.presenter.FormatMergeResult(result)), nil
+}
+
+func (h *Handler) HandleDeleteBranch(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	args := getArgs(req)
+
+	repo := getString(args, "repo")
+	if repo == "" {
+		return mcp.NewToolResultError("repo parameter is required"), nil
+	}
+
+	branch := getString(args, "branch")
+	if branch == "" {
+		return mcp.NewToolResultError("branch parameter is required"), nil
+	}
+
+	input := usecase.DeleteBranchInput{
+		Repository: repo,
+		Branch:     branch,
+		DryRun:     getBool(args, "dry_run"),
+	}
+
+	result, err := h.deleteBranch.Execute(ctx, input)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to delete branch: %v", err)), nil
+	}
+
+	return mcp.NewToolResultText(h.presenter.FormatDeleteBranchResult(result)), nil
 }
 
 func getArgs(req mcp.CallToolRequest) map[string]any {

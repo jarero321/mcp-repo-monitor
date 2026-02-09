@@ -9,7 +9,9 @@ func NewDriftDetector() *DriftDetector {
 }
 
 func (d *DriftDetector) AnalyzeDrift(comparison entity.BranchComparison) entity.DriftStatus {
-	if comparison.AheadBy == 0 && comparison.BehindBy == 0 {
+	// If GitHub reports branches as identical or there are no file changes,
+	// the branches are effectively synced (merge commits don't count as real drift)
+	if comparison.GitHubStatus == "identical" || len(comparison.Files) == 0 {
 		return entity.DriftNone
 	}
 
@@ -21,14 +23,22 @@ func (d *DriftDetector) AnalyzeDrift(comparison entity.BranchComparison) entity.
 		return entity.DriftProdAhead
 	}
 
-	return entity.DriftDevAhead
+	if comparison.BehindBy > 0 {
+		return entity.DriftDevAhead
+	}
+
+	return entity.DriftNone
 }
 
 func (d *DriftDetector) HasSignificantDrift(comparison entity.BranchComparison) bool {
-	return comparison.TotalCommits > 0 || len(comparison.Files) > 0
+	return len(comparison.Files) > 0
 }
 
 func (d *DriftDetector) GetDriftSeverity(comparison entity.BranchComparison) string {
+	if len(comparison.Files) == 0 {
+		return "none"
+	}
+
 	totalChanges := comparison.AheadBy + comparison.BehindBy
 
 	if totalChanges == 0 {

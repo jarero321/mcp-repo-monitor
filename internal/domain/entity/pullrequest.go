@@ -31,3 +31,22 @@ type PRFilter struct {
 	State      string
 	Limit      int
 }
+
+type MergeMethod string
+
+const (
+	MergeMethodMerge  MergeMethod = "merge"
+	MergeMethodSquash MergeMethod = "squash"
+	MergeMethodRebase MergeMethod = "rebase"
+)
+
+type MergeResult struct {
+	Success       bool
+	SHA           string
+	Message       string
+	PRURL         string
+	PRNumber      int
+	MergeMethod   MergeMethod
+	BranchDeleted bool
+	BranchName    string
+}

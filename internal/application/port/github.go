@@ -13,6 +13,7 @@ type GitHubClient interface {
 	ListPullRequests(ctx context.Context, filter entity.PRFilter) ([]entity.PullRequest, error)
 	GetPullRequest(ctx context.Context, owner, repo string, number int) (*entity.PullRequest, error)
 	CreatePullRequest(ctx context.Context, owner, repo, title, body, head, base string, draft bool) (*entity.PullRequest, error)
+	MergePullRequest(ctx context.Context, owner, repo string, number int, method, commitTitle string) (*entity.MergeResult, error)
 
 	ListCommits(ctx context.Context, filter entity.CommitFilter) ([]entity.Commit, error)
 
@@ -21,6 +22,8 @@ type GitHubClient interface {
 	TriggerWorkflow(ctx context.Context, owner, repo, workflowID, ref string) error
 
 	CompareBranches(ctx context.Context, owner, repo, base, head string) (*entity.BranchComparison, error)
+
+	DeleteBranch(ctx context.Context, owner, repo, branch string) error
 
 	GetCurrentUser(ctx context.Context) (string, error)
 }
